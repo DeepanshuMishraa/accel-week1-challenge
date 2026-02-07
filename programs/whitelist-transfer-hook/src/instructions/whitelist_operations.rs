@@ -1,9 +1,9 @@
-use anchor_lang::{
-    prelude::*, 
-    system_program
-};
+use anchor_lang::{prelude::*, system_program};
 
-use crate::state::whitelist::Whitelist;
+use crate::state::{
+    whitelist::{Whitelist, WhitelistEntry},
+    TransferHookError,
+};
 
 #[derive(Accounts)]
 pub struct WhitelistOperations<'info> {
@@ -22,16 +22,26 @@ pub struct WhitelistOperations<'info> {
 }
 
 impl<'info> WhitelistOperations<'info> {
-    pub fn add_to_whitelist(&mut self, address: Pubkey) -> Result<()> {
-        if !self.whitelist.address.contains(&address) {
+    pub fn add_to_whitelist(&mut self, user: Pubkey) -> Result<()> {
+        if !self
+            .whitelist
+            .address
+            .iter()
+            .any(|entry| entry.user == user)
+        {
             self.realloc_whitelist(true)?;
-            self.whitelist.address.push(address);
+            self.whitelist.address.push(WhitelistEntry { user, amount: 0 });
         }
         Ok(())
     }
 
-    pub fn remove_from_whitelist(&mut self, address: Pubkey) -> Result<()> {
-        if let Some(pos) = self.whitelist.address.iter().position(|&x| x == address) {
+    pub fn remove_from_whitelist(&mut self, user: Pubkey) -> Result<()> {
+        if let Some(pos) = self
+            .whitelist
+            .address
+            .iter()
+            .position(|entry| entry.user == user)
+        {
             self.whitelist.address.remove(pos);
             self.realloc_whitelist(false)?;
         }
@@ -39,43 +49,40 @@ impl<'info> WhitelistOperations<'info> {
     }
 
     pub fn realloc_whitelist(&self, is_adding: bool) -> Result<()> {
-        // Get the account info for the whitelist
         let account_info = self.whitelist.to_account_info();
 
-        if is_adding {  // Adding to whitelist
-            let new_account_size = account_info.data_len() + std::mem::size_of::<Pubkey>();
-            // Calculate rent required for the new account size
+        if is_adding {
+            let new_account_size = account_info.data_len() + WhitelistEntry::SIZE;
             let lamports_required = (Rent::get()?).minimum_balance(new_account_size);
-            // Determine additional rent required
-            let rent_diff = lamports_required - account_info.lamports();
+            let rent_diff = lamports_required.saturating_sub(account_info.lamports());
 
-            // Perform transfer of additional rent
-            let cpi_program = self.system_program.to_account_info();
-            let cpi_accounts = system_program::Transfer{
-                from: self.admin.to_account_info(), 
-                to: account_info.clone(),
-            };
-            let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-            system_program::transfer(cpi_context,rent_diff)?;
+            if rent_diff > 0 {
+                let cpi_program = self.system_program.to_account_info();
+                let cpi_accounts = system_program::Transfer {
+                    from: self.admin.to_account_info(),
+                    to: account_info.clone(),
+                };
+                let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+                system_program::transfer(cpi_context, rent_diff)?;
+            }
 
-            // Reallocate the account
             account_info.resize(new_account_size)?;
             msg!("Account Size Updated: {}", account_info.data_len());
-
-        } else {        // Removing from whitelist
-            let new_account_size = account_info.data_len() - std::mem::size_of::<Pubkey>();
-            // Calculate rent required for the new account size
+        } else {
+            let new_account_size = account_info
+                .data_len()
+                .checked_sub(WhitelistEntry::SIZE)
+                .ok_or(error!(TransferHookError::MathOverflow))?;
             let lamports_required = (Rent::get()?).minimum_balance(new_account_size);
-            // Determine additional rent to be refunded
-            let rent_diff = account_info.lamports() - lamports_required;
+            let rent_diff = account_info.lamports().saturating_sub(lamports_required);
 
-            // Reallocate the account
             account_info.resize(new_account_size)?;
             msg!("Account Size Downgraded: {}", account_info.data_len());
 
-            // Perform transfer to refund additional rent
-            **self.admin.to_account_info().try_borrow_mut_lamports()? += rent_diff;
-            **self.whitelist.to_account_info().try_borrow_mut_lamports()? -= rent_diff;
+            if rent_diff > 0 {
+                **self.admin.to_account_info().try_borrow_mut_lamports()? += rent_diff;
+                **self.whitelist.to_account_info().try_borrow_mut_lamports()? -= rent_diff;
+            }
         }
 
         Ok(())

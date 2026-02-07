@@ -34,6 +34,14 @@ pub mod whitelist_transfer_hook {
         ctx.accounts.initialize_vault(&ctx.bumps)
     }
 
+    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+        ctx.accounts.deposit(amount, &ctx.bumps)
+    }
+
+    pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
+        ctx.accounts.withdraw(amount, &ctx.bumps)
+    }
+
     pub fn initialize_transfer_hook(ctx: Context<InitializeExtraAccountMetaList>) -> Result<()> {
         msg!("Initializing Transfer Hook...");
         let extra_account_metas = InitializeExtraAccountMetaList::extra_account_metas()?;

@@ -67,14 +67,14 @@ impl<'info> TransferHook<'info> {
 
         if is_destination_vault {
             require!(
-                self.whitelist.address.contains(&self.source_token.owner),
+                self.whitelist.address.iter().any(|entry| entry.user == self.source_token.owner),
                 TransferHookError::SourceNotWhitelisted
             );
         }
 
         if is_source_vault {
             require!(
-                self.whitelist.address.contains(&self.destination_token.owner),
+                self.whitelist.address.iter().any(|entry| entry.user == self.destination_token.owner),
                 TransferHookError::DestinationNotWhitelisted
             );
         }

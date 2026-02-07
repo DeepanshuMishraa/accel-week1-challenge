@@ -3,11 +3,11 @@ pub mod init_vault;
 pub mod initialize_whitelist;
 pub mod mint_token;
 pub mod transfer_hook;
+pub mod vault_operations;
 pub mod whitelist_operations;
-
 pub use init_extra_account_meta::*;
 pub use init_vault::*;
 pub use initialize_whitelist::*;
-pub use mint_token::*;
 pub use transfer_hook::*;
+pub use vault_operations::*;
 pub use whitelist_operations::*;

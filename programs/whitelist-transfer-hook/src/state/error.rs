@@ -12,4 +12,19 @@ pub enum TransferHookError {
     DestinationNotWhitelisted,
     #[msg("Mint does not match the vault mint")]
     InvalidVaultMint,
+    #[msg("User is not whitelisted")]
+    UserNotWhitelisted,
+    #[msg("Insufficient balance recorded for this whitelisted user")]
+    InsufficientWhitelistedBalance,
+    #[msg("Amount must be greater than zero")]
+    InvalidAmount,
+    #[msg("Math overflow")]
+    MathOverflow,
+}
+#[error_code]
+pub enum VaultError {
+    #[msg("Mint does not match the vault mint")]
+    InvalidVaultMint,
+    #[msg("Insufficient balance in the vault")]
+    InsufficientBalance,
 }
