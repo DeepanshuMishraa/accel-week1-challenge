@@ -16,7 +16,8 @@ use anchor_spl::{
     }
 };
 
-use crate::state::Whitelist;
+use crate::state::{Whitelist, Vault,TransferHookError};
+
 
 #[derive(Accounts)]
 pub struct TransferHook<'info> {
@@ -42,6 +43,8 @@ pub struct TransferHook<'info> {
         seeds = [b"whitelist"], 
         bump = whitelist.bump,
     )]
+
+    pub vault: Account<'info, Vault>,
     pub whitelist: Account<'info, Whitelist>,
 }
 
@@ -51,14 +54,29 @@ impl<'info> TransferHook<'info> {
         // Fail this instruction if it is not called from within a transfer hook
         
         self.check_is_transferring()?;
+        require_keys_eq!(self.vault.mint,self.mint.key(), TransferHookError::InvalidVaultMint);
+
+
+        let is_source_vault = self.source_token.key() == self.vault.token_account;
+        let is_destination_vault = self.destination_token.key() == self.vault.token_account;
+
+        require!(is_source_vault || is_destination_vault, TransferHookError::TransferMustTouchVault);
 
         msg!("Source token owner: {}", self.source_token.owner);
         msg!("Destination token owner: {}", self.destination_token.owner);
 
-        if self.whitelist.address.contains(&self.source_token.owner) {
-            msg!("Transfer allowed: The address is whitelisted");
-        } else {
-            panic!("TransferHook: Address is not whitelisted");
+        if is_destination_vault {
+            require!(
+                self.whitelist.address.contains(&self.source_token.owner),
+                TransferHookError::SourceNotWhitelisted
+            );
+        }
+
+        if is_source_vault {
+            require!(
+                self.whitelist.address.contains(&self.destination_token.owner),
+                TransferHookError::DestinationNotWhitelisted
+            );
         }
 
         Ok(())
