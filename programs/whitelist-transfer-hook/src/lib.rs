@@ -42,6 +42,10 @@ pub mod whitelist_transfer_hook {
         ctx.accounts.withdraw(amount, &ctx.bumps)
     }
 
+    pub fn mint_token(ctx: Context<MintToken>, amount: u64) -> Result<()> {
+        ctx.accounts.mint(amount, &ctx.bumps)
+    }
+
     pub fn initialize_transfer_hook(ctx: Context<InitializeExtraAccountMetaList>) -> Result<()> {
         msg!("Initializing Transfer Hook...");
         let extra_account_metas = InitializeExtraAccountMetaList::extra_account_metas()?;

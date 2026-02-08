@@ -11,3 +11,4 @@ pub use initialize_whitelist::*;
 pub use transfer_hook::*;
 pub use vault_operations::*;
 pub use whitelist_operations::*;
+pub use mint_token::*;

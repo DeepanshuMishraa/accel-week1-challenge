@@ -28,3 +28,11 @@ pub enum VaultError {
     #[msg("Insufficient balance in the vault")]
     InsufficientBalance,
 }
+
+#[error_code]
+pub enum MintError {
+    #[msg("Only vault admin can mint")]
+    UnauthorizedAdmin,
+    #[msg("Amount must be greater than zero")]
+    InvalidAmount,
+}
